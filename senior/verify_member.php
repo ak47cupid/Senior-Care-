@@ -1,0 +1,13 @@
+<?php
+require_once __DIR__ . '/../includes/functions.php';
+$token = (string)($_GET['token'] ?? '');
+$member = null;
+if (preg_match('/^[a-f0-9]{64}$/', $token)) {
+    $q = db()->prepare("SELECT s.senior_id,s.first_name,s.middle_name,s.last_name,u.status FROM senior_citizens s JOIN users u ON u.user_id=s.user_id WHERE s.member_qr_token=? AND u.status='Active' LIMIT 1");
+    $q->execute([$token]);
+    $member = $q->fetch() ?: null;
+}
+$valid = $member !== null;
+$memberNo = $valid ? 'TSC-' . str_pad((string)$member['senior_id'], 6, '0', STR_PAD_LEFT) : '';
+?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Membership Verification · Barangay Tungkil</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"><style>body{min-height:100vh;background:#eef3f4;display:grid;place-items:center;padding:24px;font-family:system-ui,sans-serif;color:#173e49}.verify-card{width:min(100%,460px);padding:34px;border-radius:24px;background:#fff;box-shadow:0 20px 60px #123f4320;text-align:center}.verify-mark{width:72px;height:72px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;background:<?= $valid ? '#e4f5eb' : '#fff0e8' ?>;color:<?= $valid ? '#168052' : '#ad4d2d' ?>;font-size:2rem}.verify-card h1{font-size:1.5rem;font-weight:750}.verify-status{font-weight:800;color:<?= $valid ? '#168052' : '#ad4d2d' ?>}.verify-details{margin-top:24px;padding:18px;border-radius:14px;background:#f4f8f8;text-align:left}.verify-details small{color:#687d81}.verify-details strong{display:block;margin:3px 0 14px}.verify-brand{margin-top:22px;font-size:.8rem;color:#657b7e}</style></head><body><main class="verify-card"><div class="verify-mark"><i class="bi <?= $valid ? 'bi-patch-check-fill' : 'bi-exclamation-circle-fill' ?>"></i></div><h1>Membership Verification</h1><p class="verify-status"><?= $valid ? 'ACTIVE MEMBER' : 'MEMBERSHIP NOT VALID' ?></p><?php if ($valid): ?><div class="verify-details"><small>Member name</small><strong><?= e(trim($member['first_name'].' '.$member['middle_name'].' '.$member['last_name'])) ?></strong><small>Member number</small><strong><?= e($memberNo) ?></strong><small>Issuing office</small><strong class="mb-0">Barangay Tungkil · Senior Citizen Services</strong></div><?php else: ?><p class="text-muted mb-0">This QR code is invalid or the membership is no longer active. Please contact Barangay Tungkil for assistance.</p><?php endif; ?><div class="verify-brand">Senior Citizen Assistance System</div></main></body></html>

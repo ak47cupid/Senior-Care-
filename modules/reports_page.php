@@ -7,16 +7,18 @@ function render_reports_page(array $roles): void {
     if(!$date || $date->format('Y-m')!==$month) { http_response_code(422);exit('Select a valid month.'); }
     $start=$date->format('Y-m-d');$end=$date->modify('+1 month')->format('Y-m-d');
     $type=$_GET['type'] ?? 'requests';
-    if(!in_array($type,['requests','registrations','distributions'],true))$type='requests';
+    if(!in_array($type,['requests','registrations','distributions','appointments'],true))$type='requests';
     $headings=[
-        'requests'=>['Senior','Assistance type','Current status','Remarks','Submitted'],
+        'requests'=>['Senior','Assistance type','Current status','Queue ticket','Queue status','Remarks','Submitted'],
         'registrations'=>['Senior','Current status','Submitted'],
-        'distributions'=>['Request','Senior','Item','Quantity','Unit','Cash amount (PHP)','Released','Released by','Received by']
+        'distributions'=>['Request','Senior','Item','Quantity','Unit','Cash amount (PHP)','Released','Released by','Received by'],
+        'appointments'=>['Senior','Preferred date and time','Purpose','Current status','Confirmed date and time','Queue ticket','Queue status','Staff notes','Request submitted']
     ];
     $sql=match($type) {
         'registrations'=>'SELECT u.full_name,u.status,u.created_at FROM users u JOIN senior_citizens s ON s.user_id=u.user_id WHERE u.created_at>=? AND u.created_at<? ORDER BY u.created_at',
         'distributions'=>'SELECT d.request_id,u.full_name,d.item,d.quantity,d.unit,d.amount,d.released_at,staff.full_name,d.received_by FROM assistance_distributions d JOIN assistance_requests ar ON ar.request_id=d.request_id JOIN senior_citizens s ON s.senior_id=ar.senior_id JOIN users u ON u.user_id=s.user_id JOIN users staff ON staff.user_id=d.released_by WHERE d.released_at>=? AND d.released_at<? ORDER BY d.released_at',
-        default=>'SELECT u.full_name,ar.request_type,ar.status,ar.remarks,ar.created_at FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id JOIN users u ON u.user_id=s.user_id WHERE ar.created_at>=? AND ar.created_at<? ORDER BY ar.created_at'
+        'appointments'=>'SELECT u.full_name,a.requested_at,a.purpose,a.status,a.scheduled_at,CONCAT("Q-",LPAD(q.queue_number,4,"0")),q.status,a.staff_notes,a.created_at FROM appointments a JOIN users u ON u.user_id=a.user_id LEFT JOIN service_queue q ON q.appointment_id=a.appointment_id WHERE a.created_at>=? AND a.created_at<? ORDER BY a.created_at',
+        default=>'SELECT u.full_name,ar.request_type,ar.status,CONCAT("Q-",LPAD(q.queue_number,4,"0")),q.status,ar.remarks,ar.created_at FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id JOIN users u ON u.user_id=s.user_id LEFT JOIN service_queue q ON q.request_id=ar.request_id WHERE ar.created_at>=? AND ar.created_at<? ORDER BY ar.created_at'
     };
     $q=db()->prepare($sql);$q->execute([$start,$end]);$rows=$q->fetchAll(PDO::FETCH_NUM);
     if (($_GET['export'] ?? '')==='csv') {
@@ -33,6 +35,8 @@ function render_reports_page(array $roles): void {
         'Registrations submitted'=>'SELECT COUNT(*) FROM users u JOIN senior_citizens s ON s.user_id=u.user_id WHERE u.created_at>=? AND u.created_at<?',
         'Requests still pending review'=>"SELECT COUNT(*) FROM assistance_requests WHERE created_at>=? AND created_at<? AND status IN ('Pending','Under Review')",
         'Assistance releases'=>'SELECT COUNT(*) FROM assistance_distributions WHERE released_at>=? AND released_at<?',
+        'Appointment requests'=>'SELECT COUNT(*) FROM appointments WHERE created_at>=? AND created_at<?',
+        'Appointments confirmed'=>"SELECT COUNT(*) FROM appointments WHERE created_at>=? AND created_at<? AND status='Confirmed'",
         'Unique beneficiaries'=>'SELECT COUNT(DISTINCT ar.senior_id) FROM assistance_distributions d JOIN assistance_requests ar ON ar.request_id=d.request_id WHERE d.released_at>=? AND d.released_at<?',
         'Cash released (PHP)'=>'SELECT COALESCE(SUM(amount),0) FROM assistance_distributions WHERE released_at>=? AND released_at<?'
     ] as $label=>$countSql) { $q=db()->prepare($countSql);$q->execute([$start,$end]);$counts[$label]=$q->fetchColumn(); }
@@ -45,7 +49,7 @@ function render_reports_page(array $roles): void {
 <button class="btn btn-primary">Apply</button><button class="btn btn-outline-primary" name="export" value="csv">Download CSV</button><button type="button" class="btn btn-outline-primary" onclick="window.print()">Print / Save PDF</button>
 </form>
 <div class="row g-2 mb-3"><?php foreach($counts as $label=>$count): ?><div class="col"><div class="metric-card"><div class="label"><?= e($label) ?></div><div class="value"><?= e((string)$count) ?></div></div></div><?php endforeach; ?></div>
-<p class="small text-muted">Dates: <?= e($start) ?> through <?= e($date->modify('last day of this month')->format('Y-m-d')) ?>. Statuses are current; pending totals count requests submitted this month. Beneficiaries and releases use actual release dates. Cash totals exclude non-cash assistance.</p>
+<p class="small text-muted">Dates: <?= e($start) ?> through <?= e($date->modify('last day of this month')->format('Y-m-d')) ?>. Appointment records are grouped by the date the request was submitted; statuses shown are current. Pending totals count requests submitted this month. Beneficiaries and releases use actual release dates. Cash totals exclude non-cash assistance.</p>
 <div class="panel table-responsive"><h2 class="h5"><?= ucfirst($type) ?></h2><table class="table"><thead><tr><?php foreach($headings[$type] as $heading): ?><th><?= e($heading) ?></th><?php endforeach; ?></tr></thead><tbody>
 <?php if(!$rows): ?><tr><td colspan="<?= count($headings[$type]) ?>">No records for this month.</td></tr><?php endif; ?>
 <?php foreach($rows as $row): ?><tr><?php foreach($row as $cell): ?><td><?= e($cell===null?'—':(string)$cell) ?></td><?php endforeach; ?></tr><?php endforeach; ?>

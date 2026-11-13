@@ -49,6 +49,7 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
 <h1 class="page-title">My Profile</h1>
+<div class="mb-3"><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/senior/digital_id.php"><i class="bi bi-person-vcard" aria-hidden="true"></i> View Member Card</a></div>
 <div class="panel" style="max-width:720px">
     <form method="post" enctype="multipart/form-data" class="row g-3" id="profile-form">
         <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">

@@ -76,6 +76,7 @@ function render_role_dashboard(string $role): void {
         <p><?= $isSenior?'Your assistance, updates, and next steps—all in one place.':($isAdmin?'A closer look at your community. Keep services moving and make every application count.':'Make today a little easier for your community. Your review queue and upcoming schedules are ready.') ?></p>
         <div class="welcome-actions">
             <a class="dash-button light" href="<?= BASE_URL.$prefix ?>/requests.php"><?= $isSenior?'Request assistance':'Open request queue' ?> <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+            <?php if($isSenior && $user['status']==='Active'): ?><a class="welcome-secondary" href="<?= BASE_URL ?>/senior/appointments.php">Request an appointment <i class="bi bi-calendar-plus" aria-hidden="true"></i></a><?php endif; ?>
             <a class="welcome-secondary" href="<?= BASE_URL.$prefix.($isSenior?'/announcements.php':'/reports.php') ?>"><?= $isSenior?'View announcements':'View reports' ?> <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
         </div>
     </div>

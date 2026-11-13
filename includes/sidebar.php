@@ -31,6 +31,8 @@ $menus = [
         ['Registrations', '/staff/registrations.php', 'bi-person-check'],
         ['Seniors', '/staff/seniors.php', 'bi-person-hearts'],
         ['Requests', '/staff/requests.php', 'bi-clipboard2-pulse'],
+        ['Appointments', '/staff/appointments.php', 'bi-calendar2-check'],
+        ['Digital Queue', '/staff/queue.php', 'bi-list-ol'],
         ['Announcements', '/staff/announcements.php', 'bi-broadcast'],
         ['Events', '/staff/events.php', 'bi-calendar-event'],
         ['Send SMS', '/staff/sms.php', 'bi-chat-dots'],
@@ -42,6 +44,8 @@ $menus = [
 
         ['Dashboard', '/senior/dashboard.php', 'bi-speedometer2'],
         ['My Assistance Requests', '/senior/requests.php', 'bi-clipboard-plus'],
+        ['Appointments', '/senior/appointments.php', 'bi-calendar2-check'],
+        ['My Queue', '/senior/queue.php', 'bi-ticket-perforated'],
         ['Announcements', '/senior/announcements.php', 'bi-broadcast'],
         ['Events', '/senior/events.php', 'bi-calendar-event']
 

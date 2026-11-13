@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS senior_citizens (
   employment_status VARCHAR(40) NOT NULL,
   classification VARCHAR(40) NOT NULL,
   application_status VARCHAR(20) NULL,
+  member_qr_token CHAR(64) NULL UNIQUE,
   membership_remarks VARCHAR(255) NULL,
   nationality VARCHAR(80) NULL,
   occupation VARCHAR(120) NULL,
@@ -102,6 +103,44 @@ CREATE TABLE IF NOT EXISTS assistance_requests (
   INDEX idx_requests_senior_status_created (senior_id, status, created_at),
   CONSTRAINT fk_requests_senior FOREIGN KEY (senior_id) REFERENCES senior_citizens(senior_id) ON DELETE CASCADE,
   CONSTRAINT fk_requests_processor FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS appointments (
+  appointment_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  requested_at DATETIME NOT NULL,
+  purpose VARCHAR(500) NOT NULL,
+  status ENUM('Requested','Confirmed','Declined','Cancelled','Completed') NOT NULL DEFAULT 'Requested',
+  scheduled_at DATETIME NULL,
+  staff_notes VARCHAR(500) NULL,
+  reviewed_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_appointments_user_status_date (user_id,status,requested_at),
+  INDEX idx_appointments_schedule (status,scheduled_at),
+  CONSTRAINT fk_appointments_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_appointments_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS queue_daily_counters (
+  queue_date DATE PRIMARY KEY,
+  last_number INT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS service_queue (
+  queue_id INT AUTO_INCREMENT PRIMARY KEY,
+  queue_date DATE NOT NULL,
+  queue_number INT UNSIGNED NOT NULL,
+  request_id INT NULL UNIQUE,
+  appointment_id INT NULL UNIQUE,
+  status ENUM('Waiting','Called','Serving','Completed','No Show') NOT NULL DEFAULT 'Waiting',
+  called_at DATETIME NULL,
+  completed_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_service_queue_date_number (queue_date,queue_number),
+  INDEX idx_service_queue_day_status (queue_date,status,queue_number),
+  CONSTRAINT fk_queue_request FOREIGN KEY (request_id) REFERENCES assistance_requests(request_id) ON DELETE CASCADE,
+  CONSTRAINT fk_queue_appointment FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS announcements (

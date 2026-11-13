@@ -103,7 +103,7 @@ function require_login(): array
         if ($user['role_name'] !== 'Senior Citizen' || !in_array($user['status'], ['Pending','Rejected'],true)) {
             http_response_code(403); exit('This account is not active.');
         }
-        if (!in_array($path,['dashboard.php','notifications.php','notification_count.php','mark_notification_read.php','requirement_file.php','profile.php','profile_photo.php'],true)) {
+        if (!in_array($path,['dashboard.php','notifications.php','notification_count.php','mark_notification_read.php','requirement_file.php','profile.php','profile_photo.php','digital_id.php'],true)) {
             redirect('/senior/dashboard.php');
         }
     }

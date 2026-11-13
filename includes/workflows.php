@@ -6,6 +6,20 @@ function application_event(int $userId, ?int $requestId, string $status, string 
     db()->prepare('INSERT INTO application_events (user_id,request_id,status,remarks,actor_id) VALUES (?,?,?,?,?)')->execute([$userId,$requestId,$status,$remarks,$actorId]);
 }
 
+function issue_service_queue_ticket(PDO $pdo, string $date, ?int $requestId = null, ?int $appointmentId = null): int
+{
+    if (($requestId === null) === ($appointmentId === null)) {
+        throw new InvalidArgumentException('A queue ticket must belong to one request or appointment.');
+    }
+    $pdo->prepare('INSERT IGNORE INTO queue_daily_counters (queue_date,last_number) VALUES (?,0)')->execute([$date]);
+    $pdo->prepare('UPDATE queue_daily_counters SET last_number=last_number+1 WHERE queue_date=?')->execute([$date]);
+    $counter=$pdo->prepare('SELECT last_number FROM queue_daily_counters WHERE queue_date=? FOR UPDATE');
+    $counter->execute([$date]);
+    $number=(int)$counter->fetchColumn();
+    $pdo->prepare('INSERT INTO service_queue (queue_date,queue_number,request_id,appointment_id) VALUES (?,?,?,?)')->execute([$date,$number,$requestId,$appointmentId]);
+    return $number;
+}
+
 /**
  * Uses fixed internal SQL aliases: s/u for the applicant, other/other_user
  * for the possible match. Older installations only have users.full_name.

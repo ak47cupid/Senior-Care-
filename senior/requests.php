@@ -92,9 +92,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = db()->prepare('INSERT INTO assistance_requests (senior_id, request_type, description, supporting_document, identity_document, identity_label, pension_status, pension_provider, monthly_pension_amount, financial_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([$seniorId, $type, $description, $documentPath, $identityPath, $identityLabel, $pensionStatus!==''?$pensionStatus:null, $pensionProvider!==''?$pensionProvider:null, $pensionAmount===''?null:$pensionAmount, $financialStatus!==''?$financialStatus:null]);
     $requestId = (int)db()->lastInsertId();
+    $queueNumber = issue_service_queue_ticket(db(), date('Y-m-d'), $requestId, null);
     application_event((int)$user['user_id'],$requestId,'Submitted','Assistance request submitted.',(int)$user['user_id']);
-    notify_user((int)$user['user_id'], 'Assistance Request Submitted', 'Request #' . $requestId . ' for ' . trim($_POST['request_type']) . ' has been submitted and is Pending review.',null,$requestId);
-    notify_barangay_staff('New Assistance Application', $user['full_name'] . ' submitted request #' . $requestId . ' for ' . trim($_POST['request_type']) . '.', null, $requestId);
+    notify_user((int)$user['user_id'], 'Assistance Request Submitted', 'Request #' . $requestId . ' for ' . trim($_POST['request_type']) . ' has been submitted. Your queue ticket for '.date('M j, Y').' is Q-'.str_pad((string)$queueNumber,4,'0',STR_PAD_LEFT).'.',null,$requestId);
+    notify_barangay_staff('New Assistance Application', $user['full_name'] . ' submitted request #' . $requestId . ' for ' . trim($_POST['request_type']) . ' (Queue Q-'.str_pad((string)$queueNumber,4,'0',STR_PAD_LEFT).').', null, $requestId);
     audit_log((int)$user['user_id'], 'Submitted assistance request', 'assistance_requests', $requestId);
     db()->commit();
     } catch(Throwable $error) {
@@ -110,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     flash('success','Request submitted.'); redirect('/senior/requests.php');
 }
-$rows = db()->prepare('SELECT * FROM assistance_requests WHERE senior_id=? ORDER BY created_at DESC'); $rows->execute([$seniorId]); $rows = $rows->fetchAll();
+$rows = db()->prepare('SELECT ar.*,q.queue_number,q.queue_date,q.status AS queue_status FROM assistance_requests ar LEFT JOIN service_queue q ON q.request_id=ar.request_id WHERE ar.senior_id=? ORDER BY ar.created_at DESC'); $rows->execute([$seniorId]); $rows = $rows->fetchAll();
 $deathAlreadyRequested = death_assistance_already_requested($seniorId);
 $eventsByRequest = [];
 $releasesByRequest = [];
@@ -136,9 +137,9 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
 </div>
 <div class="panel table-responsive">
     <table class="table align-middle">
-        <thead><tr><th>Type</th><th>Reason</th><th>Status</th><th>Requested</th><th>Remarks</th></tr></thead>
+        <thead><tr><th>Type</th><th>Reason</th><th>Status</th><th>Queue ticket</th><th>Requested</th><th>Remarks</th></tr></thead>
         <tbody>
-        <?php if (!$rows): ?><tr><td colspan="5" class="text-muted">No requests yet. Use Submit a Request to ask for assistance.</td></tr><?php endif; ?>
+        <?php if (!$rows): ?><tr><td colspan="6" class="text-muted">No requests yet. Use Submit a Request to ask for assistance.</td></tr><?php endif; ?>
         <?php foreach ($rows as $r): ?>
             <tr>
                 <td>
@@ -155,6 +156,7 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
                     <?php endif; ?>
                 </td>
                 <td><?= e(request_status_label((string) $r['status'])) ?></td>
+                <td><?php if($r['queue_number']): ?><strong>Q-<?= e(str_pad((string)$r['queue_number'],4,'0',STR_PAD_LEFT)) ?></strong><br><small><?= e(date('M j',strtotime($r['queue_date']))) ?> · <?= e($r['queue_status']) ?></small><?php else: ?>—<?php endif; ?></td>
                 <td><?= e(date('M j, Y g:i A', strtotime($r['created_at']))) ?></td>
                 <td><?= e($r['remarks']) ?></td>
             </tr>
@@ -174,6 +176,7 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
     <p><?= e($r['request_type']) ?><?= $r['request_type'] === 'Death Assistance' ? '' : ': ' . e($r['description']) ?></p>
     <p>Requested <?= e(date('M j, Y g:i A', strtotime($r['created_at']))) ?></p>
     <?php if (!empty($r['schedule_date'])): ?><p>Schedule: <?= e(date('M j, Y g:i A', strtotime($r['schedule_date']))) ?></p><?php endif; ?>
+    <?php if (!empty($r['queue_number'])): ?><p class="alert alert-info py-2"><strong>Queue ticket Q-<?= e(str_pad((string)$r['queue_number'],4,'0',STR_PAD_LEFT)) ?></strong> · <?= e($r['queue_status']) ?> · <?= e(date('M j, Y',strtotime($r['queue_date']))) ?></p><?php endif; ?>
     <?php if (trim((string) $r['remarks']) !== ''): ?><p>Remarks: <?= e($r['remarks']) ?></p><?php endif; ?>
     <h3 class="h6">Application timeline</h3>
     <ol class="timeline">
